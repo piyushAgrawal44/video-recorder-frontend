@@ -1,0 +1,1 @@
+Video recorder app  UI using React + Vite + Tailwind CSS 
