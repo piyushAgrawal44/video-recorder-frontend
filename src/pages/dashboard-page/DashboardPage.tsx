@@ -46,11 +46,6 @@ function DashboardPage() {
       setSocketMessages(prev => [...prev, `Message: ${message.text}`]);
     });
     
-    newSocket.on('recording-saved', (data: any) => {
-      // When a new recording is saved, refresh our list
-      fetchRecordings();
-    });
-    
     setSocket(newSocket);
     
     return () => {

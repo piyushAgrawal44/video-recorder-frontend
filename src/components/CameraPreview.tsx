@@ -6,7 +6,7 @@ const CameraRecorder = ({ socket }: any) => {
 
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
-  const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
+  // const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [recordedURL, setRecordedURL] = useState<string | null>(null);
   const [timer, setTimer] = useState<number>(0);
@@ -56,7 +56,7 @@ const CameraRecorder = ({ socket }: any) => {
 
       // Clear previous recorded chunks
       const chunks: Blob[] = [];
-      setRecordedChunks([]);
+      // setRecordedChunks([]);
 
       // Create media recorder with explicit settings
       const recorder = new MediaRecorder(stream, {
@@ -79,7 +79,7 @@ const CameraRecorder = ({ socket }: any) => {
         if (event.data && event.data.size > 0) {
           // Add to local array for preview
           chunks.push(event.data);
-          setRecordedChunks(prevChunks => [...prevChunks, event.data]);
+          // setRecordedChunks(prevChunks => [...prevChunks, event.data]);
 
           // Send to server
           const reader = new FileReader();
