@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 
 import { io } from 'socket.io-client';
-import CameraRecorder from '../../components/CameraPreview';
+import CameraRecorder from '../../components/CameraRecorder';
 
 // Define types for our recordings
 interface Recording {

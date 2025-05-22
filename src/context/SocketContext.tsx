@@ -13,12 +13,19 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [socket, setSocket] = useState<Socket | null>(null);
 
   useEffect(() => {
-    const newSocket = io(import.meta.env.VITE_APP_BACKEND_URL);
-    setSocket(newSocket);
-    
-    newSocket.on('connect', () => {
-      console.log('🔌 Connected to backend:', newSocket.id);
+    const newSocket = io(import.meta.env.VITE_APP_BACKEND_URL, {
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      transports: ['websocket']
     });
+
+
+    newSocket.on('connect', () => console.log('🔌 Connected:', newSocket.id));
+    newSocket.on('connect_error', (err) => console.error('❌ Connection Error:', err.message));
+    newSocket.on('disconnect', (reason) => console.warn('⚠️ Disconnected:', reason));
+    setSocket(newSocket);
+
 
     return () => {
       newSocket.disconnect();

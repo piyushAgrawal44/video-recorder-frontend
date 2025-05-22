@@ -14,7 +14,7 @@ function LiveStreamList() {
   useEffect(() => {
     const fetchStreams = async () => {
       try {
-        const res = await fetch('http://localhost:4000/live-streams');
+        const res = await fetch(`${import.meta.env.VITE_APP_BACKEND_URL}/live-streams`);
         const data = await res.json();
         setStreams(data.streams);
       } catch (error) {

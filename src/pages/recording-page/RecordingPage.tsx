@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import CameraPreview from '../../components/CameraPreview';
+import CameraRecorder from '../../components/CameraRecorder';
 import { useSocket } from '../../context/SocketContext';
 function RecordingPage() {
   const { socket } = useSocket();
@@ -7,17 +7,23 @@ function RecordingPage() {
   useEffect(() => {
     if (!socket) return;
 
-    socket.on("message", (data: { text: string }) => {
+    const handleMessage = (data: { text: string }) => {
       setMsg(data.text);
-    });
+    };
 
-  }, []);
+    socket.on("message", handleMessage);
+
+    return () => {
+      socket.off("message", handleMessage); // ✅ Cleanup
+    };
+
+  }, [socket]);
 
   return (
     <>
       <div className='p-5'>
-        <p className='my-3 text-lg text-center font-semibold text-red-400'>{msg}</p>
-        <CameraPreview socket={socket} />
+        <p className='my-3 text-xl max-w-[200px] mx-auto text-wrap text-center font-semibold text-red-400'>{msg}</p>
+        {socket && <CameraRecorder socket={socket} />}
       </div>
     </>
   );

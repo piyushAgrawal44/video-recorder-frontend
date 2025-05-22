@@ -1,19 +1,16 @@
 import { useEffect, useRef, useState } from "react";
+import type { Socket } from "socket.io-client";
 
-const CameraRecorder = ({ socket }: any) => {
+const CameraRecorder = ({ socket }: { socket: Socket }) => {
   const liveVideoRef = useRef<HTMLVideoElement>(null);
-  const recordedVideoRef = useRef<HTMLVideoElement>(null);
 
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
-  // const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
   const [isRecording, setIsRecording] = useState(false);
-  const [recordedURL, setRecordedURL] = useState<string | null>(null);
   const [timer, setTimer] = useState<number>(0);
   const timerRef = useRef<any | null>(null);
   const [status, setStatus] = useState<string>("");
   const [isCameraLoading, setIsCameraLoading] = useState(true);
-  const [message, setMessage] = useState("");
 
   const requestCameraAccess = async () => {
     setIsCameraLoading(true); // show loader
@@ -44,8 +41,15 @@ const CameraRecorder = ({ socket }: any) => {
       return;
     }
 
+    if (mediaRecorder?.state === "recording") {
+      console.warn("Already recording!");
+      setStatus("Already recording!");
+      return;
+    }
+
+
     try {
-      // Check for supported MIME types
+
       const mimeType = MediaRecorder.isTypeSupported("video/webm; codecs=vp9,opus")
         ? "video/webm; codecs=vp9,opus"
         : MediaRecorder.isTypeSupported("video/webm; codecs=vp8,opus")
@@ -54,11 +58,9 @@ const CameraRecorder = ({ socket }: any) => {
 
       console.log(`Using MIME type: ${mimeType}`);
 
-      // Clear previous recorded chunks
-      const chunks: Blob[] = [];
-      // setRecordedChunks([]);
 
-      // Create media recorder with explicit settings
+      const chunks: Blob[] = [];
+
       const recorder = new MediaRecorder(stream, {
         mimeType,
         videoBitsPerSecond: 2500000, // 2.5 Mbps
@@ -79,7 +81,6 @@ const CameraRecorder = ({ socket }: any) => {
         if (event.data && event.data.size > 0) {
           // Add to local array for preview
           chunks.push(event.data);
-          // setRecordedChunks(prevChunks => [...prevChunks, event.data]);
 
           // Send to server
           const reader = new FileReader();
@@ -106,8 +107,6 @@ const CameraRecorder = ({ socket }: any) => {
         if (chunks.length > 0) {
           // Create local preview
           const blob = new Blob(chunks, { type: mimeType });
-          const url = URL.createObjectURL(blob);
-          setRecordedURL(url);
           setStatus(`Recording complete: ${(blob.size / (1024 * 1024)).toFixed(2)}MB`);
 
           // Signal recording end to server
@@ -119,7 +118,7 @@ const CameraRecorder = ({ socket }: any) => {
         clearInterval(timerRef.current!);
       };
 
-      // Important: We need to signal recording start AFTER setup is complete
+      // inform backend
       socket.emit("recording-start");
 
       // Request data every 100ms (smaller chunks for smoother streaming)
@@ -161,10 +160,6 @@ const CameraRecorder = ({ socket }: any) => {
 
     if (!socket) return;
 
-    socket.on('message', (data: { text: string }) => {
-      console.log("Received message from server:", data.text);
-      setMessage(data.text);
-    });
 
     // Add socket event listeners for server responses
     socket.on("recording-saved", (data: any) => {
@@ -183,7 +178,6 @@ const CameraRecorder = ({ socket }: any) => {
     <div className="w-full max-w-xl mx-auto p-6 bg-white border shadow rounded-lg text-center">
       <h2 className="text-xl font-bold mb-4">🎥 Record from Camera</h2>
 
-      <p className="text-red-500 my-2">{message}</p>
       {/* Live Camera */}
       {isCameraLoading && (
         <div className="text-sm animate-pulse">
@@ -231,18 +225,6 @@ const CameraRecorder = ({ socket }: any) => {
         )}
       </div>
 
-      {/* Recorded Preview */}
-      {recordedURL && (
-        <div className="mt-6">
-          <h3 className="text-lg font-semibold mb-2">📹 Recorded Video:</h3>
-          <video
-            ref={recordedVideoRef}
-            src={recordedURL}
-            controls
-            className="w-full h-64 object-contain border rounded"
-          />
-        </div>
-      )}
     </div>
   );
 };
