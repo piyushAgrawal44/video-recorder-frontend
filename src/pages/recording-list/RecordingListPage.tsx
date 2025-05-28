@@ -24,7 +24,7 @@ function RecordingListPage() {
   const [error, setError] = useState<string | null>(null);
 
   // UI state
-  const [activeTab, setActiveTab] = useState<'live' | 'recordings'>('live');
+ 
   const videoPlayerRef = useRef<HTMLVideoElement>(null);
 
   // Initialize socket connection
@@ -83,7 +83,7 @@ function RecordingListPage() {
   // When recording is selected, load its metadata
   const handleSelectRecording = async (recording: Recording) => {
     setSelectedRecording(recording);
-
+    console.log(videoPlayerRef, 'videoPlayerRef')
     if (videoPlayerRef.current) {
       videoPlayerRef.current.src = recording.url;
       videoPlayerRef.current.load();
@@ -151,169 +151,137 @@ function RecordingListPage() {
       </header>
 
       {/* Main content */}
-      <main className="flex-grow container mx-auto px-4 py-8">
-        {/* Tab navigation */}
-        <div className="border-b border-gray-200 mb-6">
-          <nav className="flex space-x-8" aria-label="Tabs">
-            <button
-              onClick={() => setActiveTab('live')}
-              className={`${activeTab === 'live'
-                ? 'border-indigo-500 text-indigo-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-            >
-              Live Recording
-            </button>
-            <button
-              onClick={() => setActiveTab('recordings')}
-              className={`${activeTab === 'recordings'
-                ? 'border-indigo-500 text-indigo-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-            >
-              Past Recordings
-            </button>
-          </nav>
-        </div>
+      <main className="container mx-auto px-4 py-8">
+
 
         {/* Content area */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main panel */}
-          <div className="lg:col-span-2">
-            {activeTab === 'live' ? (
-              <div className="bg-white rounded-lg shadow overflow-hidden">
-                <div className="p-6">
-                  <h2 className="text-lg font-medium text-gray-900 mb-4">Live Camera Feed</h2>
-                  <LiveStreamList />
-                </div>
+        <div className="">
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="p-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">Live Camera Feed</h2>
+              <LiveStreamList />
+            </div>
 
 
-              </div>
-            ) : (
-              <div className="bg-white rounded-lg shadow overflow-hidden">
-                <div className="p-6">
-                  <h2 className="text-lg font-medium text-gray-900 mb-4">
-                    Video Playback
-                    {selectedRecording && (
-                      <span className="text-sm font-normal text-gray-500 ml-2">
-                        {formatDate(selectedRecording.timestamp)}
-                      </span>
-                    )}
-                  </h2>
-
-                  {selectedRecording ? (
-                    <div>
-                      <video
-                        ref={videoPlayerRef}
-                        className="w-full h-auto rounded bg-black"
-                        controls
-                        onLoadedMetadata={handleMetadataLoaded}
-                      />
-
-                      {/* Recording details */}
-                      {selectedRecording.duration > 0 && (
-                        <div className="mt-4 bg-gray-50 p-4 rounded grid grid-cols-3 gap-4 text-sm">
-                          <div>
-                            <p className="text-gray-500">Duration</p>
-                            <p className="font-medium">{formatDuration(selectedRecording.duration)}</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-500">File Size</p>
-                            <p className="font-medium">{formatFileSize(selectedRecording.size)}</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-500">Filename</p>
-                            <p className="font-medium text-xs truncate">{selectedRecording.filename}</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center bg-gray-100 rounded-lg h-64">
-                      <p className="text-gray-500">Select a recording to play</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
-
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-5">
+            {/* Main panel */}
+            <div className="bg-white lg:col-span-2 rounded-lg shadow overflow-hidden">
               <div className="p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-lg font-medium text-gray-900">Recording History</h2>
-                  <button
-                    onClick={fetchRecordings}
-                    className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
-                  >
-                    Refresh
-                  </button>
-                </div>
+                <h2 className="text-lg font-medium text-gray-900 mb-4">
+                  Video Playback
+                  {selectedRecording && (
+                    <span className="text-sm font-normal text-gray-500 ml-2">
+                      {formatDate(selectedRecording.timestamp)}
+                    </span>
+                  )}
+                </h2>
 
-                {isLoading ? (
-                  <div className="py-8 flex justify-center">
-                    <svg className="animate-spin h-6 w-6 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                  </div>
-                ) : error ? (
-                  <div className="py-8 text-center">
-                    <p className="text-red-500">{error}</p>
-                    <button
-                      onClick={fetchRecordings}
-                      className="mt-4 text-indigo-600 hover:text-indigo-900 text-sm font-medium"
-                    >
-                      Try Again
-                    </button>
-                  </div>
-                ) : recordings.length === 0 ? (
-                  <div className="py-8 text-center">
-                    <p className="text-gray-500">No recordings found</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {recordings.map((recording) => (
-                      <button
-                        key={recording.filename}
-                        onClick={() => {
-                          handleSelectRecording(recording);
-                          setActiveTab('recordings');
-                        }}
-                        className={`w-full text-left p-3 rounded-lg text-sm ${selectedRecording?.filename === recording.filename
-                          ? 'bg-indigo-50 border border-indigo-200'
-                          : 'hover:bg-gray-50 border border-gray-200'
-                          }`}
-                      >
-                        <div className="font-medium mb-1 truncate">
-                          {recording.filename.replace(/^recording_[^_]+_/, '').replace(/\.webm$/, '')}
+                <video
+                  ref={videoPlayerRef}
+                  className="w-full h-auto rounded bg-black"
+                  controls
+                  onLoadedMetadata={handleMetadataLoaded}
+                />
+                {selectedRecording && (
+                  <div>
+                    {/* Recording details */}
+                    {selectedRecording.duration > 0 && (
+                      <div className="mt-4 bg-gray-50 p-4 rounded grid grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <p className="text-gray-500">Duration</p>
+                          <p className="font-medium">{formatDuration(selectedRecording.duration)}</p>
                         </div>
-                        <div className="text-gray-500 text-xs">
-                          {formatDate(recording.timestamp)}
+                        <div>
+                          <p className="text-gray-500">File Size</p>
+                          <p className="font-medium">{formatFileSize(selectedRecording.size)}</p>
                         </div>
-                      </button>
-                    ))}
+                        <div>
+                          <p className="text-gray-500">Filename</p>
+                          <p className="font-medium text-xs truncate">{selectedRecording.filename}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             </div>
-
-            {/* Quick Stats */}
-            <div className="bg-white rounded-lg shadow mt-6">
-              <div className="p-6">
-                <h2 className="text-lg font-medium text-gray-900 mb-4">Stats</h2>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-gray-50 p-4 rounded">
-                    <p className="text-gray-500 text-sm">Total Recordings</p>
-                    <p className="text-2xl font-bold">{recordings.length}</p>
+            {/* Sidebar */}
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-lg shadow">
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-lg font-medium text-gray-900">Recording History</h2>
+                    <button
+                      onClick={fetchRecordings}
+                      className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
+                    >
+                      Refresh
+                    </button>
                   </div>
-                  <div className="bg-gray-50 p-4 rounded">
-                    <p className="text-gray-500 text-sm">Server Status</p>
-                    <p className={`text-sm font-medium ${connected ? 'text-green-600' : 'text-red-600'}`}>
-                      {connected ? 'Online' : 'Offline'}
-                    </p>
+
+                  {isLoading ? (
+                    <div className="py-8 flex justify-center">
+                      <svg className="animate-spin h-6 w-6 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    </div>
+                  ) : error ? (
+                    <div className="py-8 text-center">
+                      <p className="text-red-500">{error}</p>
+                      <button
+                        onClick={fetchRecordings}
+                        className="mt-4 text-indigo-600 hover:text-indigo-900 text-sm font-medium"
+                      >
+                        Try Again
+                      </button>
+                    </div>
+                  ) : recordings.length === 0 ? (
+                    <div className="py-8 text-center">
+                      <p className="text-gray-500">No recordings found</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                      {recordings.map((recording) => (
+                        <button
+                          key={recording.filename}
+                          onClick={() => {
+                            handleSelectRecording(recording);
+                          }}
+                          className={`w-full text-left p-3 rounded-lg text-sm ${selectedRecording?.filename === recording.filename
+                            ? 'bg-indigo-50 border border-indigo-200'
+                            : 'hover:bg-gray-50 border border-gray-200'
+                            }`}
+                        >
+                          <div className="font-medium mb-1 truncate">
+                            {recording.filename.replace(/^recording_[^_]+_/, '').replace(/\.webm$/, '')}
+                          </div>
+                          <div className="text-gray-500 text-xs">
+                            {formatDate(recording.timestamp)}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Quick Stats */}
+              <div className="bg-white rounded-lg shadow mt-6">
+                <div className="p-6">
+                  <h2 className="text-lg font-medium text-gray-900 mb-4">Stats</h2>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-gray-50 p-4 rounded">
+                      <p className="text-gray-500 text-sm">Total Recordings</p>
+                      <p className="text-2xl font-bold">{recordings.length}</p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded">
+                      <p className="text-gray-500 text-sm">Server Status</p>
+                      <p className={`text-sm font-medium ${connected ? 'text-green-600' : 'text-red-600'}`}>
+                        {connected ? 'Online' : 'Offline'}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
