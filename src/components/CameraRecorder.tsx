@@ -49,15 +49,15 @@ const CameraRecorder = ({ socket }: { socket: Socket }) => {
       const mimeType = MediaRecorder.isTypeSupported("video/webm; codecs=vp9,opus")
         ? "video/webm; codecs=vp9,opus"
         : MediaRecorder.isTypeSupported("video/webm; codecs=vp8,opus")
-        ? "video/webm; codecs=vp8,opus"
-        : "video/webm";
+          ? "video/webm; codecs=vp8,opus"
+          : "video/webm";
 
       const chunks: Blob[] = [];
       const recorder = new MediaRecorder(stream, {
         mimeType,
         videoBitsPerSecond: 2500000,
       });
-
+      mediaRecorderRef.current = recorder;
       setMediaRecorder(recorder);
       setIsRecording(true);
       setTimer(0);
@@ -109,11 +109,13 @@ const CameraRecorder = ({ socket }: { socket: Socket }) => {
       setIsRecording(false);
     }
   };
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
   const stopRecording = () => {
-    if (mediaRecorder && mediaRecorder.state !== "inactive") {
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== "inactive") {
       try {
-        mediaRecorder.stop();
+        recorder.stop();
         setIsRecording(false);
         setStatus("Finalizing recording...");
       } catch (err) {
@@ -122,6 +124,7 @@ const CameraRecorder = ({ socket }: { socket: Socket }) => {
       }
     }
   };
+
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60).toString().padStart(2, "0");
