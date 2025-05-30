@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import type { Socket } from "socket.io-client";
+import { Camera, Play, Square, Clock, AlertTriangle, CheckCircle, Loader2, Video } from "lucide-react";
 
 const MAX_DURATION = 120; // seconds (2 minutes)
 
-const CameraRecorder = ({ socket }: { socket: Socket }) => {
-  const liveVideoRef = useRef<HTMLVideoElement>(null);
+// Mock socket for demonstration
+const mockSocket = {
+  emit: () => { },
+  on: () => { },
+  off: () => { }
+};
 
+const CameraRecorder = ({ socket = mockSocket }: { socket?: any }) => {
+  const liveVideoRef = useRef<HTMLVideoElement>(null);
+  const [msg, setMsg] = useState<string | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -52,8 +59,8 @@ const CameraRecorder = ({ socket }: { socket: Socket }) => {
       const mimeType = MediaRecorder.isTypeSupported("video/webm; codecs=vp9,opus")
         ? "video/webm; codecs=vp9,opus"
         : MediaRecorder.isTypeSupported("video/webm; codecs=vp8,opus")
-        ? "video/webm; codecs=vp8,opus"
-        : "video/webm";
+          ? "video/webm; codecs=vp8,opus"
+          : "video/webm";
 
       // const chunks: Blob[] = []; // This 'chunks' array is for local use if needed, not for sending
       const recorder = new MediaRecorder(stream, {
@@ -158,66 +165,167 @@ const CameraRecorder = ({ socket }: { socket: Socket }) => {
       setStatus(`Recording error: ${data.message}`);
     });
 
+    const handleMessage = (data: { text: string }) => {
+      setMsg(data.text);
+    };
+
+    socket.on("message", handleMessage);
+
     return () => {
       stream?.getTracks().forEach((track) => track.stop());
       if (timerRef.current) clearInterval(timerRef.current);
       socket.off("recording-saved");
       socket.off("recording-error");
       socket.off("cloudinary-failed");
+      socket.off("message", handleMessage);
     };
   }, [socket, stream]); // Added stream to dependency array
 
-  return (
-    <div className="w-full max-w-xl mx-auto p-6 bg-white border shadow rounded-lg text-center">
-      <h2 className="text-xl font-bold mb-4">🎥 Record from Camera</h2>
+  const getStatusIcon = () => {
+    if (status.includes("saved")) return <CheckCircle className="w-4 h-4 text-green-500" />;
+    if (status.includes("failed") || status.includes("error")) return <AlertTriangle className="w-4 h-4 text-red-500" />;
+    if (status.includes("Finalizing")) return <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />;
+    return <Video className="w-4 h-4 text-blue-500" />;
+  };
 
-      {/* Storage warning */}
-      <div className="text-sm text-yellow-600 mb-3">
-        ⚠️ Storage is limited. Maximum recording time is{" "}
-        <strong>2 minutes</strong>. Please keep your recording concise.
+  const getStatusColor = () => {
+    if (status.includes("saved")) return "text-green-600 bg-green-50 border-green-200";
+    if (status.includes("failed") || status.includes("error")) return "text-red-600 bg-red-50 border-red-200";
+    if (status.includes("Finalizing")) return "text-blue-600 bg-blue-50 border-blue-200";
+    return "text-gray-600 bg-gray-50 border-gray-200";
+  };
+
+  const progressPercentage = (timer / MAX_DURATION) * 100;
+
+  return (
+    <div className="w-full max-w-2xl mx-auto bg-gradient-to-br from-gray-50 to-white border border-gray-200 shadow-xl rounded-2xl overflow-hidden">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-6 text-white">
+        <div className="flex items-center space-x-3">
+          <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+            <Camera className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold">Camera Recorder</h2>
+            <p className="text-purple-100 text-sm">Professional video recording</p>
+          </div>
+        </div>
       </div>
 
-      {/* Camera loader */}
-      {isCameraLoading && (
-        <div className="text-sm animate-pulse mb-2">🔄 Initializing camera...</div>
-      )}
+      <div className="p-6 space-y-6">
+        {/* Storage Warning */}
+        <div className="flex items-start space-x-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+          <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-amber-800 font-medium text-sm">Storage Limitation</p>
+            <p className="text-amber-700 text-sm">
+              Maximum recording time is <strong>2 minutes</strong>. Please keep your recording concise.
+            </p>
+          </div>
+        </div>
 
-      {/* Live video feed */}
-      <div className="w-full h-64 border rounded flex items-center justify-center relative mb-2">
-        <video
-          ref={liveVideoRef}
-          className="w-full h-64 object-cover"
-          autoPlay
-          playsInline
-          muted
-        />
-        {isRecording && !isCameraLoading && (
-          <div className="absolute top-2 left-2 bg-black bg-opacity-60 text-white px-3 py-1 rounded font-mono text-sm">
-            ⏺ {formatTime(timer)}
+        <p className='my-2 text-xl max-w-[200px] mx-auto text-wrap text-center font-semibold text-red-400'>{msg}</p>
+        {/* Camera Loading */}
+        {isCameraLoading && (
+          <div className="flex items-center justify-center space-x-2 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+            <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+            <span className="text-blue-700 font-medium">Initializing camera...</span>
           </div>
         )}
-      </div>
 
-      {/* Status message */}
-      {status && <div className="mb-2 text-sm text-gray-700 break-words">{status}</div>}
+        {/* Video Container */}
+        <div className="relative group">
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-300"></div>
+          <div className="relative bg-gray-900 rounded-2xl border-4 border-gray-200 overflow-hidden aspect-video">
+            <video
+              ref={liveVideoRef}
+              className="w-full h-full object-cover"
+              autoPlay
+              playsInline
+              muted
+            />
 
-      {/* Buttons */}
-      <div className="mb-6">
-        {!isRecording ? (
-          <button
-            onClick={startRecording}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 mr-2"
-            disabled={!stream || isCameraLoading} // Disable if stream not available or camera loading
-          >
-            Start Recording
-          </button>
-        ) : (
-          <button
-            onClick={stopRecording}
-            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-          >
-            Stop Recording
-          </button>
+            {/* Recording Overlay */}
+            {isRecording && !isCameraLoading && (
+              <>
+                {/* Recording Indicator */}
+                <div className="absolute top-4 left-4 flex items-center space-x-2 bg-red-600 px-4 py-2 rounded-full shadow-lg">
+                  <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                  <span className="text-white font-bold text-sm">REC</span>
+                </div>
+
+                {/* Timer */}
+                <div className="absolute top-4 right-4 bg-black/70 backdrop-blur-sm px-4 py-2 rounded-full">
+                  <div className="flex items-center space-x-2 text-white">
+                    <Clock className="w-4 h-4" />
+                    <span className="font-mono font-bold">{formatTime(timer)}</span>
+                  </div>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/30">
+                  <div
+                    className="h-full bg-gradient-to-r from-red-500 to-red-400 transition-all duration-1000 ease-linear"
+                    style={{ width: `${progressPercentage}%` }}
+                  />
+                </div>
+              </>
+            )}
+
+            {/* No Camera Placeholder */}
+            {!stream && !isCameraLoading && (
+              <div className="flex items-center justify-center h-full bg-gray-100">
+                <div className="text-center text-gray-500">
+                  <Camera className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">Camera not available</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Status Message */}
+        {status && (
+          <div className={`flex items-center space-x-3 p-4 border rounded-xl ${getStatusColor()}`}>
+            {getStatusIcon()}
+            <p className="text-sm font-medium break-words flex-1">{status}</p>
+          </div>
+        )}
+
+        {/* Controls */}
+        <div className="flex items-center justify-center space-x-4">
+          {!isRecording ? (
+            <button
+              onClick={startRecording}
+              disabled={!stream || isCameraLoading}
+              className="flex items-center space-x-3 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 disabled:from-gray-400 disabled:to-gray-300 text-white px-8 py-4 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:cursor-not-allowed group"
+            >
+              <Play className="w-5 h-5 group-disabled:opacity-50" />
+              <span>Start Recording</span>
+            </button>
+          ) : (
+            <button
+              onClick={stopRecording}
+              className="flex items-center space-x-3 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white px-8 py-4 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 group"
+            >
+              <Square className="w-5 h-5" />
+              <span>Stop Recording</span>
+            </button>
+          )}
+        </div>
+
+        {/* Recording Info */}
+        {isRecording && (
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-center">
+              <p className="text-gray-500 text-xs font-medium uppercase tracking-wide mb-1">Duration</p>
+              <p className="text-xl font-bold text-gray-900 font-mono">{formatTime(timer)}</p>
+            </div>
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-center">
+              <p className="text-gray-500 text-xs font-medium uppercase tracking-wide mb-1">Remaining</p>
+              <p className="text-xl font-bold text-gray-900 font-mono">{formatTime(MAX_DURATION - timer)}</p>
+            </div>
+          </div>
         )}
       </div>
     </div>

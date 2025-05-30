@@ -153,7 +153,7 @@ function DashboardPage() {
     <div className="flex flex-col min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex justify-between items-center">
+        <div className=" px-4 py-6 sm:px-6 lg:px-8 flex justify-between items-center">
           <h1 className="text-3xl font-bold text-gray-900">Video Recording Dashboard</h1>
           <div className="flex items-center space-x-2">
             <div className={`h-3 w-3 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
