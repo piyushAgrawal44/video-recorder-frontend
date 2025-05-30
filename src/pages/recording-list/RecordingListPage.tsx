@@ -254,7 +254,7 @@ function RecordingListPage() {
                             : 'hover:bg-gray-50 border border-gray-200'
                             }`}
                         >
-                          <div className="font-medium mb-1 truncate">
+                          <div className="font-medium mb-1 truncate break-words">
                             {recording.filename.replace(/^recording_[^_]+_/, '').replace(/\.webm$/, '')}
                           </div>
                           <div className="text-gray-500 text-xs">

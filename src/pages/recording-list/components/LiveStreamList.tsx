@@ -45,8 +45,8 @@ function LiveStreamList() {
                 className="w-full text-left p-4 bg-indigo-50 hover:bg-indigo-100 rounded"
                 onClick={() => handleJoinStream(stream.socketId)}
               >
-                <div className="flex justify-between items-center">
-                  <span>Stream ID: <span className="font-mono">{stream.socketId}</span></span>
+                <div className="flex flex-wrap justify-between items-center break-words w-full overflow-hidden">
+                  <p className='break-words'>ID: {stream.socketId}</p>
                   <span className="text-sm text-gray-500">
                     Started {Math.floor((Date.now() - stream.startedAt) / 1000)}s ago
                   </span>

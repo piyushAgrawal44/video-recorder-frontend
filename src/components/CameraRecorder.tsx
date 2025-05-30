@@ -14,12 +14,15 @@ const CameraRecorder = ({ socket }: { socket: Socket }) => {
   const [status, setStatus] = useState<string>("");
   const [isCameraLoading, setIsCameraLoading] = useState(true);
 
+  // Add a ref to track if the initial header has been sent
+  const hasSentInitialHeader = useRef(false);
+
   const requestCameraAccess = async () => {
     setIsCameraLoading(true);
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: true,
-        audio: true
+        audio: true,
       });
       setStream(mediaStream);
       if (liveVideoRef.current) {
@@ -49,10 +52,10 @@ const CameraRecorder = ({ socket }: { socket: Socket }) => {
       const mimeType = MediaRecorder.isTypeSupported("video/webm; codecs=vp9,opus")
         ? "video/webm; codecs=vp9,opus"
         : MediaRecorder.isTypeSupported("video/webm; codecs=vp8,opus")
-          ? "video/webm; codecs=vp8,opus"
-          : "video/webm";
+        ? "video/webm; codecs=vp8,opus"
+        : "video/webm";
 
-      const chunks: Blob[] = [];
+      // const chunks: Blob[] = []; // This 'chunks' array is for local use if needed, not for sending
       const recorder = new MediaRecorder(stream, {
         mimeType,
         videoBitsPerSecond: 2500000,
@@ -62,6 +65,7 @@ const CameraRecorder = ({ socket }: { socket: Socket }) => {
       setIsRecording(true);
       setTimer(0);
       setStatus("Recording started (max 2 mins)");
+      hasSentInitialHeader.current = false; // Reset for a new recording
 
       timerRef.current = setInterval(() => {
         setTimer((prev) => {
@@ -75,11 +79,15 @@ const CameraRecorder = ({ socket }: { socket: Socket }) => {
 
       recorder.ondataavailable = (event) => {
         if (event.data && event.data.size > 0) {
-          chunks.push(event.data);
           const reader = new FileReader();
           reader.onload = () => {
             if (reader.result) {
-              socket.emit("video-chunk", reader.result);
+              const isInitialChunk = !hasSentInitialHeader.current;
+              socket.emit("video-chunk", reader.result, isInitialChunk);
+              if (isInitialChunk) {
+                hasSentInitialHeader.current = true; // Mark as sent
+                console.log("🔥 Sent initial header chunk");
+              }
             }
           };
           reader.onerror = () => {
@@ -90,19 +98,18 @@ const CameraRecorder = ({ socket }: { socket: Socket }) => {
       };
 
       recorder.onstop = () => {
-        if (chunks.length > 0) {
-          const blob = new Blob(chunks, { type: mimeType });
-          setStatus(`Recording complete: ${(blob.size / (1024 * 1024)).toFixed(2)}MB`);
-          socket.emit("recording-stopped");
-        } else {
-          setStatus("No data recorded");
-        }
+        // The `chunks` array here would only contain data since the last `ondataavailable`
+        // before `stop()` was called, if `recorder.start(timeslice)` was used.
+        // For the purpose of sending to Cloudinary, the server will concatenate all received chunks.
         clearInterval(timerRef.current!);
+        setIsRecording(false); // Set to false here to avoid race conditions with status updates
+
+        setStatus("Finalizing recording..."); // Update status immediately
+        socket.emit("recording-stopped");
       };
 
       socket.emit("recording-start");
-      recorder.start(100); // request data every 100ms
-
+      recorder.start(1000); // Request data every 1000ms (1 second) for better chunking and potential keyframe alignment
     } catch (err) {
       console.error("Failed to start recording:", err);
       setStatus(`Recording failed: ${err}`);
@@ -116,15 +123,12 @@ const CameraRecorder = ({ socket }: { socket: Socket }) => {
     if (recorder && recorder.state !== "inactive") {
       try {
         recorder.stop();
-        setIsRecording(false);
-        setStatus("Finalizing recording...");
       } catch (err) {
         console.error("Error stopping recording:", err);
         setStatus("Error stopping recording");
       }
     }
   };
-
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60).toString().padStart(2, "0");
@@ -140,15 +144,28 @@ const CameraRecorder = ({ socket }: { socket: Socket }) => {
     if (!socket) return;
 
     socket.on("recording-saved", (data: any) => {
-      setStatus(`Recording saved: ${data.filename} (${(data.size / (1024 * 1024)).toFixed(2)}MB)`);
+      setStatus(
+        `Recording saved: ${data.filename} (${(data.size / (1024 * 1024)).toFixed(
+          2
+        )}MB)`
+      );
+    });
+    socket.on("cloudinary-failed", (message: string) => {
+      setStatus(message);
+    });
+
+    socket.on("recording-error", (data: any) => {
+      setStatus(`Recording error: ${data.message}`);
     });
 
     return () => {
       stream?.getTracks().forEach((track) => track.stop());
       if (timerRef.current) clearInterval(timerRef.current);
       socket.off("recording-saved");
+      socket.off("recording-error");
+      socket.off("cloudinary-failed");
     };
-  }, [socket]);
+  }, [socket, stream]); // Added stream to dependency array
 
   return (
     <div className="w-full max-w-xl mx-auto p-6 bg-white border shadow rounded-lg text-center">
@@ -156,14 +173,13 @@ const CameraRecorder = ({ socket }: { socket: Socket }) => {
 
       {/* Storage warning */}
       <div className="text-sm text-yellow-600 mb-3">
-        ⚠️ Storage is limited. Maximum recording time is <strong>2 minutes</strong>. Please keep your recording concise.
+        ⚠️ Storage is limited. Maximum recording time is{" "}
+        <strong>2 minutes</strong>. Please keep your recording concise.
       </div>
 
       {/* Camera loader */}
       {isCameraLoading && (
-        <div className="text-sm animate-pulse mb-2">
-          🔄 Initializing camera...
-        </div>
+        <div className="text-sm animate-pulse mb-2">🔄 Initializing camera...</div>
       )}
 
       {/* Live video feed */}
@@ -183,9 +199,7 @@ const CameraRecorder = ({ socket }: { socket: Socket }) => {
       </div>
 
       {/* Status message */}
-      {status && (
-        <div className="mb-2 text-sm text-gray-700">{status}</div>
-      )}
+      {status && <div className="mb-2 text-sm text-gray-700 break-words">{status}</div>}
 
       {/* Buttons */}
       <div className="mb-6">
@@ -193,7 +207,7 @@ const CameraRecorder = ({ socket }: { socket: Socket }) => {
           <button
             onClick={startRecording}
             className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 mr-2"
-            disabled={!stream}
+            disabled={!stream || isCameraLoading} // Disable if stream not available or camera loading
           >
             Start Recording
           </button>
